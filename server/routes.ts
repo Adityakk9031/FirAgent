@@ -1,14 +1,20 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertFirSchema, insertStatusUpdateSchema, geminiResponseSchema } from "@shared/schema";
+import { SearchParams } from "./storage";
+import { insertFirSchema, insertStatusUpdateSchema, insertEvidenceSchema, geminiResponseSchema } from "@shared/schema";
 import { z } from "zod";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { format } from "date-fns";
 import { generateFirId } from "../shared/utils";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { setupAuth, ensureAuthenticated, ensureRole } from "./auth";
+import { searchParamsValidator, createFirValidator, createStatusUpdateValidator, createEvidenceValidator } from "@shared/validators";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up authentication
+  setupAuth(app);
+  
   // Genini AI client
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "AIzaSyAPK43L_7NY5cIHHqoq9S1HdHY3xtgrZjM");
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -133,6 +139,200 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.send(Buffer.from(pdfBytes));
     } catch (error) {
       res.status(500).json({ message: "Failed to generate PDF" });
+    }
+  });
+
+  // Search FIRs with filters and pagination
+  app.get('/api/firs/search', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const searchParams = searchParamsValidator.parse(req.query);
+      const result = await storage.searchFirs(searchParams as SearchParams);
+      res.json(result);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid search parameters", errors: error.format() });
+      }
+      res.status(500).json({ message: "Failed to search FIRs" });
+    }
+  });
+
+  // Get FIRs by user (for civilians to see their own reports)
+  app.get('/api/firs/user/:userId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId, 10);
+      
+      // Only allow users to see their own FIRs unless they're an officer/admin
+      if (req.user?.id !== userId && req.user?.role !== 'officer' && req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const firs = await storage.getFirsByUser(userId);
+      res.json(firs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to retrieve user FIRs" });
+    }
+  });
+
+  // Get FIRs assigned to an officer
+  app.get('/api/firs/officer/:officerId', ensureRole(['officer', 'admin']), async (req: Request, res: Response) => {
+    try {
+      const officerId = parseInt(req.params.officerId, 10);
+      
+      // Officers can only see their own assigned FIRs unless they're admins
+      if (req.user?.id !== officerId && req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const firs = await storage.getFirsByOfficer(officerId);
+      res.json(firs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to retrieve officer FIRs" });
+    }
+  });
+
+  // Update a FIR (partial update)
+  app.patch('/api/firs/:firId', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { firId } = req.params;
+      const fir = await storage.getFir(firId);
+      
+      if (!fir) {
+        return res.status(404).json({ message: "FIR not found" });
+      }
+      
+      // Only allow the creator, assigned officer, or admins to update the FIR
+      if (fir.userId !== req.user?.id && fir.officerId !== req.user?.id && req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const updatedFir = await storage.updateFir(firId, req.body);
+      res.json(updatedFir);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update FIR" });
+    }
+  });
+
+  // Evidence routes
+  // Upload evidence for a FIR (simplified - actual file upload would need additional handling)
+  app.post('/api/firs/:firId/evidence', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { firId } = req.params;
+      const fir = await storage.getFir(firId);
+      
+      if (!fir) {
+        return res.status(404).json({ message: "FIR not found" });
+      }
+      
+      // This is a simplified version without actual file upload
+      // In a real implementation, you would handle multipart/form-data
+      const evidence = await storage.createEvidence({
+        ...req.body,
+        firId,
+        uploadedBy: req.user?.id,
+      });
+      
+      res.status(201).json(evidence);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to upload evidence" });
+    }
+  });
+
+  // Get evidence for a FIR
+  app.get('/api/firs/:firId/evidence', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { firId } = req.params;
+      const evidence = await storage.getEvidenceByFir(firId);
+      res.json(evidence);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to retrieve evidence" });
+    }
+  });
+
+  // Notifications routes
+  // Get user notifications
+  app.get('/api/notifications', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const unreadOnly = req.query.unreadOnly === 'true';
+      const notifications = await storage.getUserNotifications(req.user.id, unreadOnly);
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to retrieve notifications" });
+    }
+  });
+
+  // Mark notification as read
+  app.post('/api/notifications/:id/read', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      await storage.markNotificationAsRead(id);
+      res.status(200).json({ message: "Notification marked as read" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  // Mark all notifications as read
+  app.post('/api/notifications/read-all', ensureAuthenticated, async (req: Request, res: Response) => {
+    try {
+      await storage.markAllNotificationsAsRead(req.user.id);
+      res.status(200).json({ message: "All notifications marked as read" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
+  });
+
+  // Analytics routes (protected for authorized users only)
+  // Get crime type distribution
+  app.get('/api/analytics/crime-distribution', ensureRole(['officer', 'admin']), async (req: Request, res: Response) => {
+    try {
+      const distribution = await storage.getCrimeTypeDistribution();
+      res.json(distribution);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to retrieve crime distribution" });
+    }
+  });
+
+  // Get status distribution
+  app.get('/api/analytics/status-distribution', ensureRole(['officer', 'admin']), async (req: Request, res: Response) => {
+    try {
+      const distribution = await storage.getStatusDistribution();
+      res.json(distribution);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to retrieve status distribution" });
+    }
+  });
+
+  // Get priority distribution
+  app.get('/api/analytics/priority-distribution', ensureRole(['officer', 'admin']), async (req: Request, res: Response) => {
+    try {
+      const distribution = await storage.getPriorityDistribution();
+      res.json(distribution);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to retrieve priority distribution" });
+    }
+  });
+
+  // Get monthly stats for a year
+  app.get('/api/analytics/monthly-stats/:year', ensureRole(['officer', 'admin']), async (req: Request, res: Response) => {
+    try {
+      const year = parseInt(req.params.year, 10);
+      const stats = await storage.getMonthlyStats(year);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to retrieve monthly stats" });
+    }
+  });
+
+  // Get analytics for a specific time range
+  app.get('/api/analytics/time-range', ensureRole(['officer', 'admin']), async (req: Request, res: Response) => {
+    try {
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : new Date(new Date().setMonth(new Date().getMonth() - 1));
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : new Date();
+      
+      const analytics = await storage.getAnalyticsByTimeRange(startDate, endDate);
+      res.json(analytics);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to retrieve time range analytics" });
     }
   });
 

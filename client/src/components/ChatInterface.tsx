@@ -2,11 +2,14 @@ import React, { useState, useRef, useEffect } from 'react';
 import { nanoid } from 'nanoid';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { processCrimeDescription } from '@/services/gemini';
 import { createFir } from '@/services/api';
 import { GeminiResponse, Message } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { MessageSquare, Send, RefreshCw, FileText, Sparkles, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ChatInterfaceProps {
   onFirCreated: (firId: string) => void;
@@ -186,34 +189,59 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onFirCreated }) => {
   };
 
   return (
-    <Card className="flex flex-col h-full">
-      <CardHeader className="px-4 py-4 border-b">
-        <CardTitle className="text-lg font-medium flex items-center">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-square mr-2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-          Conversational FIR Assistant
-        </CardTitle>
-        <CardDescription>Describe the incident in detail to generate an FIR</CardDescription>
+    <Card className="flex flex-col h-full border-none shadow-lg">
+      <CardHeader className="px-5 py-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-t-xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mr-3">
+              <MessageSquare className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg font-semibold">AI-Powered FIR Assistant</CardTitle>
+              <CardDescription>Describe the incident in natural language</CardDescription>
+            </div>
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="bg-white">
+                  <Sparkles className="h-3 w-3 mr-1 text-primary" />
+                  Gemini AI
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Powered by Google's Gemini AI</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </CardHeader>
       
-      <div className="flex-grow p-4 overflow-y-auto" style={{ height: "400px" }}>
+      <div className="flex-grow px-5 py-4 overflow-y-auto" style={{ height: "400px", scrollbarWidth: 'thin' }}>
         {messages.map((message) => (
           <div 
             key={message.id} 
-            className={`chat-message max-w-[80%] mb-2.5 p-3 rounded-2xl ${
-              message.role === 'user' 
-                ? 'user-message bg-blue-50 border-top-right-radius-sm ml-auto' 
-                : message.type === 'json'
-                  ? 'system-message json bg-gray-50 border-top-left-radius-sm mr-auto font-mono text-sm'
-                  : 'system-message bg-white border-top-left-radius-sm mr-auto'
-            }`}
+            className={`mb-4 ${message.role === 'user' ? 'ml-auto text-right' : 'mr-auto'}`}
           >
-            {message.role === 'system' && message.type !== 'json' && (
-              <div className="font-bold">FIR Assistant</div>
-            )}
-            <div className={message.type === 'json' ? 'whitespace-pre' : ''}>
-              {message.content}
+            <div className={`inline-block max-w-[85%] px-4 py-3 rounded-xl shadow-sm
+              ${message.role === 'user' 
+                ? 'bg-primary text-white rounded-tr-none' 
+                : message.type === 'json'
+                  ? 'bg-neutral-50 text-left font-mono text-xs p-3 rounded-tl-none border'
+                  : 'bg-white text-left rounded-tl-none border'
+              }`}
+            >
+              {message.role === 'system' && message.type !== 'json' && (
+                <div className="flex items-center mb-1.5">
+                  <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center mr-1.5">
+                    <MessageSquare className="h-3 w-3 text-primary" />
+                  </div>
+                  <span className="font-medium text-sm">FIR Assistant</span>
+                </div>
+              )}
+              <div className={`${message.type === 'json' ? 'whitespace-pre overflow-x-auto' : ''} ${message.role === 'user' ? 'text-white' : 'text-gray-800'}`}>
+                {message.content}
+              </div>
             </div>
           </div>
         ))}
@@ -221,60 +249,79 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onFirCreated }) => {
 
         {/* Generate FIR button (only show when Gemini has responded) */}
         {geminiResponse && !isProcessing && (
-          <div className="flex justify-center mt-4">
+          <div className="flex justify-center mt-6 mb-2">
             <Button 
               onClick={handleGenerateFIR}
-              className="bg-primary text-white"
+              className="bg-primary hover:bg-primary/90 text-white shadow-md flex items-center gap-2 px-4 py-2"
             >
-              Generate FIR
+              <FileText className="h-4 w-4" />
+              Generate Official FIR
             </Button>
           </div>
         )}
       </div>
       
-      <CardContent className="border-t p-4">
-        <div className="flex gap-2">
+      <CardFooter className="p-5 bg-neutral-50 rounded-b-xl border-t">
+        <div className="w-full space-y-3">
           <Textarea
             id="messageInput"
             value={userInput}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Describe the incident in detail..."
+            placeholder="Describe the incident in detail (press Ctrl+Enter to send)..."
             rows={3}
-            className="flex-grow border rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="w-full resize-none border border-neutral-200 rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-primary bg-white shadow-sm"
           />
-        </div>
-        <div className="flex justify-between items-center mt-3">
-          <span className="text-xs text-muted-foreground">{charCount} characters</span>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={handleClear}
-              disabled={isProcessing}
-            >
-              Clear
-            </Button>
-            <Button 
-              className="bg-primary text-white hover:bg-primary/90 flex items-center"
-              onClick={handleSend}
-              disabled={isProcessing || !userInput.trim()}
-            >
-              {isProcessing ? (
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-send mr-1">
-                  <path d="m22 2-7 20-4-9-9-4Z"/>
-                  <path d="M22 2 11 13"/>
-                </svg>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <span className="text-xs text-muted-foreground">{charCount} characters</span>
+              {charCount > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="ml-2 text-xs flex items-center text-amber-500">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Please include date, time & location
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      <p className="text-xs max-w-xs">For better results, include specific date, time, and location details in your description</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
-              Send
-            </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={handleClear}
+                disabled={isProcessing || !userInput.trim()}
+                size="sm"
+                className="border-neutral-200"
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+              <Button 
+                onClick={handleSend}
+                disabled={isProcessing || !userInput.trim()}
+                size="sm"
+                className="bg-primary hover:bg-primary/90 text-white flex items-center gap-1.5 shadow-sm"
+              >
+                {isProcessing ? (
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                {isProcessing ? "Processing..." : "Send"}
+              </Button>
+            </div>
           </div>
         </div>
-      </CardContent>
+      </CardFooter>
     </Card>
   );
 };

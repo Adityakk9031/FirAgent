@@ -159,7 +159,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "crime": string,
         "ipcSections": string[] (e.g., ["IPC 379"]),
         "summary": string,
-        "priority": 1-5
+        "priority": 1-5,
+        "dateTime": string (extracted date and time, or leave blank if uncertain),
+        "location": string (extracted location, or leave blank if uncertain)
       }`;
       
       const prompt = `${promptTemplate}\n\nUser input: ${userInput}`;

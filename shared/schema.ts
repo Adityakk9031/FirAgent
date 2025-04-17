@@ -62,6 +62,8 @@ export const geminiResponseSchema = z.object({
   ipcSections: z.array(z.string()),
   summary: z.string(),
   priority: z.number().min(1).max(5),
+  dateTime: z.string().optional(),
+  location: z.string().optional(),
 });
 
 export type GeminiResponse = z.infer<typeof geminiResponseSchema>;

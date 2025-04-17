@@ -134,15 +134,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onFirCreated }) => {
     setIsProcessing(true);
     
     try {
-      // Format date and location from extraction if available
+      // Use date and location from Gemini extraction if available
       const fir = await createFir({
         firId: geminiResponse.firId!,
         crime: geminiResponse.crime,
         ipcSections: geminiResponse.ipcSections,
         summary: geminiResponse.summary,
         priority: geminiResponse.priority,
-        dateTime: 'Unknown', // Placeholder, in real app this would be extracted from Gemini
-        location: 'Unknown', // Placeholder, in real app this would be extracted from Gemini
+        dateTime: geminiResponse.dateTime || 'Unknown',
+        location: geminiResponse.location || 'Unknown',
         status: "REGISTERED"
       });
 

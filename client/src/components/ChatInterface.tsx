@@ -201,19 +201,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ onFirCreated }) => {
               <CardDescription>Describe the incident in natural language</CardDescription>
             </div>
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge variant="outline" className="bg-white">
-                  <Sparkles className="h-3 w-3 mr-1 text-primary" />
-                  Gemini AI
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-xs">Powered by Google's Gemini AI</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="flex items-center">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="cursor-pointer">
+                    <Badge variant="outline" className="bg-white">
+                      <Sparkles className="h-3 w-3 mr-1 text-primary" />
+                      Gemini AI
+                    </Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Powered by Google's Gemini AI</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
       </CardHeader>
       

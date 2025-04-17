@@ -1,13 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getFir, getStatusUpdates, getFirPdfUrl } from '@/services/api';
 import { useQuery } from '@tanstack/react-query';
 import { formatDate } from '@shared/utils';
-import { FIR, StatusUpdate } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { FIR, StatusUpdate } from '@/types';
+import { 
+  FileText, 
+  Activity, 
+  AlertCircle, 
+  Download, 
+  Phone, 
+  Calendar, 
+  MapPin, 
+  Scale, 
+  CheckCircle2, 
+  Clock, 
+  FileQuestion,
+  ExternalLink,
+  Tag
+} from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 interface FIRStatusPanelProps {
   firId: string | null;
@@ -22,25 +38,30 @@ interface StatusItemProps {
 
 // Status timeline item component
 const StatusItem: React.FC<StatusItemProps> = ({ status, timestamp, description, completed }) => (
-  <div className="flex mb-6 relative">
-    <div className={`h-8 w-8 rounded-full ${completed ? 'bg-green-500' : 'bg-gray-200'} text-white flex items-center justify-center z-10`}>
+  <div className="flex mb-8 relative">
+    <div className={`h-10 w-10 rounded-full ${
+      completed 
+        ? 'bg-primary text-white' 
+        : 'bg-neutral-100 border border-neutral-200'
+      } flex items-center justify-center z-10 shadow-sm`}
+    >
       {completed ? (
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check">
-          <path d="M20 6 9 17l-5-5"/>
-        </svg>
+        <CheckCircle2 size={20} />
       ) : (
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-hourglass text-gray-500">
-          <path d="M5 22h14"/>
-          <path d="M5 2h14"/>
-          <path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/>
-          <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>
-        </svg>
+        <Clock size={18} className="text-muted-foreground" />
       )}
     </div>
     <div className="ml-4">
-      <p className="font-medium">{status}</p>
-      <p className="text-sm text-muted-foreground">{timestamp || 'Pending'}</p>
-      <p className="text-sm mt-1">{description}</p>
+      <div className="flex items-center mb-1">
+        <p className="font-semibold text-gray-800">{status}</p>
+        {timestamp && (
+          <Badge variant="outline" className="ml-2 text-xs font-normal">
+            {timestamp}
+          </Badge>
+        )}
+      </div>
+      {!timestamp && <p className="text-xs text-amber-600 font-medium mb-1">Pending</p>}
+      <p className="text-sm text-muted-foreground mt-1">{description}</p>
     </div>
   </div>
 );
@@ -53,8 +74,8 @@ const FIRStatusPanel: React.FC<FIRStatusPanelProps> = ({ firId }) => {
     data: fir, 
     isLoading: isLoadingFir,
     isError: isErrorFir
-  } = useQuery({
-    queryKey: firId ? [`/api/firs/${firId}`] : null,
+  } = useQuery<FIR>({
+    queryKey: firId ? [`/api/firs/${firId}`] : ['empty'],
     enabled: !!firId
   });
   
@@ -62,8 +83,8 @@ const FIRStatusPanel: React.FC<FIRStatusPanelProps> = ({ firId }) => {
   const { 
     data: statusUpdates, 
     isLoading: isLoadingStatus 
-  } = useQuery({
-    queryKey: firId ? [`/api/firs/${firId}/status-updates`] : null,
+  } = useQuery<StatusUpdate[]>({
+    queryKey: firId ? [`/api/firs/${firId}/status-updates`] : ['empty-status'],
     enabled: !!firId
   });
 
@@ -85,82 +106,102 @@ const FIRStatusPanel: React.FC<FIRStatusPanelProps> = ({ firId }) => {
   // Show message when no FIR is selected
   if (!firId) {
     return (
-      <div className="flex flex-col space-y-6">
-        <Card>
-          <CardContent className="pt-6 flex items-center justify-center h-64">
-            <div className="text-center text-muted-foreground">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-file-question mx-auto mb-4">
-                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <path d="M10 13a1.5 1.5 0 1 1-1.14-1.474"/>
-                <path d="M9.89 16h.03"/>
-              </svg>
-              <p>No FIR has been generated yet</p>
-              <p className="text-sm mt-2">Describe an incident in the chat to generate an FIR</p>
+      <Card className="flex flex-col h-full border-none shadow-lg">
+        <CardHeader className="px-5 py-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-xl">
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center mr-3">
+              <FileQuestion className="h-5 w-5 text-muted-foreground" />
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div>
+              <CardTitle className="text-lg font-semibold">FIR Status Panel</CardTitle>
+              <CardDescription>Track your case status and details</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="flex-grow p-0">
+          <div className="flex items-center justify-center h-[400px] flex-col p-6">
+            <div className="w-20 h-20 rounded-full bg-neutral-100 flex items-center justify-center mb-6">
+              <FileQuestion className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-medium text-gray-800 mb-2">No FIR Selected</h3>
+            <p className="text-center text-muted-foreground max-w-xs">
+              Describe an incident in the chat interface to generate a new First Information Report.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   // Show loading state
   if (isLoadingFir) {
     return (
-      <div className="flex flex-col space-y-6">
-        <Card>
-          <CardHeader className="px-4 py-4 border-b flex justify-between items-center">
-            <CardTitle className="text-lg font-medium flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-file-text mr-2">
-                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" x2="8" y1="13" y2="13"/>
-                <line x1="16" x2="8" y1="17" y2="17"/>
-                <line x1="10" x2="8" y1="9" y2="9"/>
-              </svg>
-              FIR Details
-            </CardTitle>
-            <Skeleton className="h-6 w-20 rounded-full" />
-          </CardHeader>
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-4">
-              {Array(6).fill(0).map((_, i) => (
-                <div key={i}>
-                  <Skeleton className="h-4 w-24 mb-2" />
-                  <Skeleton className="h-6 w-full" />
-                </div>
-              ))}
+      <Card className="flex flex-col h-full border-none shadow-lg">
+        <CardHeader className="px-5 py-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center mr-3">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-semibold">FIR Details</CardTitle>
+                <CardDescription>Loading case information...</CardDescription>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </div>
+        </CardHeader>
+        
+        <CardContent className="p-5">
+          <div className="space-y-6">
+            {Array(6).fill(0).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-8 w-full" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   // Show error state
   if (isErrorFir || !fir) {
     return (
-      <div className="flex flex-col space-y-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center text-muted-foreground">
-              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-alert-circle mx-auto mb-4 text-red-500">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" x2="12" y1="8" y2="12"/>
-                <line x1="12" x2="12.01" y1="16" y2="16"/>
-              </svg>
-              <p>Error loading FIR details</p>
-              <Button 
-                variant="outline" 
-                className="mt-4"
-                onClick={() => window.location.reload()}
-              >
-                Retry
-              </Button>
+      <Card className="flex flex-col h-full border-none shadow-lg">
+        <CardHeader className="px-5 py-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-xl">
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center mr-3">
+              <AlertCircle className="h-5 w-5 text-red-500" />
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div>
+              <CardTitle className="text-lg font-semibold">Error</CardTitle>
+              <CardDescription>Unable to load FIR details</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="flex-grow p-0">
+          <div className="flex items-center justify-center h-[400px] flex-col p-6">
+            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <AlertCircle className="h-8 w-8 text-red-500" />
+            </div>
+            <h3 className="text-xl font-medium text-gray-800 mb-2">Unable to Load FIR</h3>
+            <p className="text-center text-muted-foreground mb-6">
+              There was a problem loading the FIR details. Please try again later.
+            </p>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.reload()}
+              className="border-neutral-200"
+            >
+              Retry
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -211,94 +252,160 @@ const FIRStatusPanel: React.FC<FIRStatusPanelProps> = ({ firId }) => {
     return statusMap.has(status.status) ? statusMap.get(status.status) : status;
   });
 
+  // Map priority to colors
+  const getPriorityColor = (priority: number) => {
+    switch(priority) {
+      case 1: return "bg-green-100 text-green-800 border-green-200";
+      case 2: return "bg-blue-100 text-blue-800 border-blue-200";
+      case 3: return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case 4: return "bg-orange-100 text-orange-800 border-orange-200";
+      case 5: return "bg-red-100 text-red-800 border-red-200";
+      default: return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const getPriorityText = (priority: number) => {
+    switch(priority) {
+      case 1: return "Low";
+      case 2: return "Medium-Low";
+      case 3: return "Medium";
+      case 4: return "Medium-High";
+      case 5: return "High";
+      default: return "Unknown";
+    }
+  };
+
   return (
     <div className="flex flex-col space-y-6">
       {/* FIR Details Card */}
-      <Card>
-        <CardHeader className="px-4 py-4 border-b flex justify-between items-center">
-          <CardTitle className="text-lg font-medium flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-file-text mr-2">
-              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" x2="8" y1="13" y2="13"/>
-              <line x1="16" x2="8" y1="17" y2="17"/>
-              <line x1="10" x2="8" y1="9" y2="9"/>
-            </svg>
-            FIR Details
-          </CardTitle>
-          <Badge className="bg-green-500">{fir.status}</Badge>
+      <Card className="border-none shadow-lg">
+        <CardHeader className="px-5 py-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-t-xl flex justify-between">
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mr-3">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg font-semibold">FIR Details</CardTitle>
+              <CardDescription>Case information and summary</CardDescription>
+            </div>
+          </div>
+          
+          <Badge className={`${fir.status === "REGISTERED" ? "bg-green-100 text-green-800 border border-green-200" : "bg-blue-100 text-blue-800 border border-blue-200"} font-medium py-1 px-3`}>
+            {fir.status}
+          </Badge>
         </CardHeader>
         
-        <CardContent className="p-4">
-          <div className="flex flex-col gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">FIR ID</p>
-              <p className="font-mono font-medium">{fir.firId}</p>
-            </div>
-            
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Crime Type</p>
-              <p className="capitalize">{fir.crime}</p>
-            </div>
-            
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">IPC Sections</p>
-              <div className="flex flex-wrap gap-2">
-                {fir.ipcSections.map((section, index) => (
-                  <Badge key={index} variant="secondary" className="bg-muted rounded-full">
-                    {section}
-                  </Badge>
-                ))}
+        <CardContent className="px-5 py-4">
+          <div className="space-y-5">
+            <div className="bg-neutral-50 p-4 rounded-lg border border-neutral-100">
+              <div className="flex items-center gap-2 text-primary font-medium mb-2">
+                <FileText size={16} />
+                <span>FIR #{fir.firId}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Calendar size={14} />
+                  <span>Filed on {formatDate(fir.createdAt)}</span>
+                </div>
+                <Badge 
+                  variant="outline" 
+                  className={`${getPriorityColor(fir.priority)} px-2 py-0.5`}
+                >
+                  {getPriorityText(fir.priority)} Priority
+                </Badge>
               </div>
             </div>
             
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Date & Time</p>
-              <p>{fir.dateTime || 'Not specified'}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-1">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Tag size={14} className="text-muted-foreground" />
+                  Crime Type
+                </label>
+                <p className="capitalize text-lg font-medium text-gray-800">{fir.crime}</p>
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Scale size={14} className="text-muted-foreground" />
+                  IPC Sections
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {fir.ipcSections.map((section, index) => (
+                    <Badge key={index} className="bg-neutral-100 text-gray-800 border-0 py-0.5 px-2">
+                      {section}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Calendar size={14} className="text-muted-foreground" />
+                  Date & Time
+                </label>
+                <p className="text-gray-700">{fir.dateTime || 'Not specified'}</p>
+              </div>
+              
+              <div className="space-y-1">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <MapPin size={14} className="text-muted-foreground" />
+                  Location
+                </label>
+                <p className="text-gray-700">{fir.location || 'Not specified'}</p>
+              </div>
             </div>
             
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Location</p>
-              <p>{fir.location || 'Not specified'}</p>
-            </div>
-            
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Summary</p>
-              <p className="text-sm">{fir.summary}</p>
-            </div>
-            
-            <div className="mt-2">
-              <Button 
-                onClick={handleDownloadPDF}
-                className="bg-primary text-white hover:bg-primary/90 flex items-center"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-download mr-1">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" x2="12" y1="15" y2="3"/>
-                </svg>
-                Download FIR PDF
-              </Button>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Incident Summary</label>
+              <div className="p-4 bg-neutral-50 rounded-lg border border-neutral-100 text-gray-700">
+                {fir.summary}
+              </div>
             </div>
           </div>
         </CardContent>
+        
+        <CardFooter className="px-5 py-4 bg-neutral-50 border-t rounded-b-xl">
+          <Button 
+            onClick={handleDownloadPDF}
+            className="bg-primary hover:bg-primary/90 text-white shadow-sm flex items-center gap-2"
+          >
+            <Download size={16} />
+            Download FIR PDF
+          </Button>
+          <Button
+            variant="outline"
+            className="ml-auto"
+            onClick={() => toast({
+              title: "Share Link",
+              description: "Link copying functionality coming soon",
+              duration: 3000,
+            })}
+          >
+            <ExternalLink size={16} className="mr-2" />
+            Share
+          </Button>
+        </CardFooter>
       </Card>
       
       {/* Case Tracking Card */}
-      <Card>
-        <CardHeader className="px-4 py-4 border-b">
-          <CardTitle className="text-lg font-medium flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-activity mr-2">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-            </svg>
-            Case Tracking
-          </CardTitle>
+      <Card className="border-none shadow-lg">
+        <CardHeader className="px-5 py-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-t-xl">
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center mr-3">
+              <Activity className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg font-semibold">Case Timeline</CardTitle>
+              <CardDescription>Track investigation progress and status updates</CardDescription>
+            </div>
+          </div>
         </CardHeader>
         
-        <CardContent className="p-4">
-          <div className="relative">
+        <CardContent className="px-5 py-4">
+          <div className="relative pl-2 py-2">
             {/* Timeline line */}
-            <div className="absolute left-3.5 top-0 bottom-0 w-px bg-gray-200"></div>
+            <div className="absolute left-5 top-0 bottom-0 w-[2px] bg-gradient-to-b from-primary/30 via-primary/10 to-gray-100"></div>
             
             {/* Status Items */}
             {statusList.map((item, index) => (
@@ -311,21 +418,30 @@ const FIRStatusPanel: React.FC<FIRStatusPanelProps> = ({ firId }) => {
               />
             ))}
           </div>
-          
-          <div className="mt-6 pt-4 border-t border-gray-200">
-            <p className="font-medium mb-2">Have questions about your case?</p>
+        </CardContent>
+        
+        <CardFooter className="px-5 py-4 bg-neutral-50 border-t rounded-b-xl flex flex-col items-start">
+          <div className="w-full p-4 rounded-lg border border-neutral-100 mb-4">
+            <h4 className="font-medium mb-2 flex items-center">
+              <Phone size={16} className="text-primary mr-2" />
+              Have questions about your case?
+            </h4>
+            <p className="text-sm text-muted-foreground mb-3">
+              Contact the investigating officer for updates or to provide additional information about your case.
+            </p>
             <Button 
               variant="outline" 
-              className="text-primary border-primary hover:bg-primary/10 flex items-center"
+              className="border-primary text-primary hover:bg-primary/5"
               onClick={handleContactOfficer}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-phone mr-1">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-              </svg>
               Contact Investigating Officer
             </Button>
           </div>
-        </CardContent>
+          
+          <div className="text-xs text-muted-foreground w-full">
+            Next status update expected within 48 hours
+          </div>
+        </CardFooter>
       </Card>
     </div>
   );

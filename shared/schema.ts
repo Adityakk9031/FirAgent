@@ -1,6 +1,7 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 // Original users table
 export const users = pgTable("users", {
@@ -42,7 +43,7 @@ export type Fir = typeof firs.$inferSelect;
 // Status Updates table
 export const statusUpdates = pgTable("status_updates", {
   id: serial("id").primaryKey(),
-  firId: text("fir_id").notNull(),
+  firId: text("fir_id").notNull().references(() => firs.firId, { onDelete: 'cascade' }),
   status: text("status").notNull(),
   description: text("description").notNull(),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
@@ -67,3 +68,15 @@ export const geminiResponseSchema = z.object({
 });
 
 export type GeminiResponse = z.infer<typeof geminiResponseSchema>;
+
+// Define relations
+export const firsRelations = relations(firs, ({ many }) => ({
+  statusUpdates: many(statusUpdates),
+}));
+
+export const statusUpdatesRelations = relations(statusUpdates, ({ one }) => ({
+  fir: one(firs, {
+    fields: [statusUpdates.firId],
+    references: [firs.firId],
+  }),
+}));

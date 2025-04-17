@@ -1,8 +1,9 @@
 import { firs, statusUpdates, users, type User, type InsertUser, type Fir, type InsertFir, type StatusUpdate, type InsertStatusUpdate } from "@shared/schema";
 import { format } from "date-fns";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
-// modify the interface with any CRUD methods
-// you might need
+// Interface for storage operations
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
@@ -20,60 +21,38 @@ export interface IStorage {
   getStatusUpdates(firId: string): Promise<StatusUpdate[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private firs: Map<string, Fir>;
-  private statusUpdates: Map<number, StatusUpdate>;
-  private userCurrentId: number;
-  private firCurrentId: number;
-  private statusUpdateCurrentId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.firs = new Map();
-    this.statusUpdates = new Map();
-    this.userCurrentId = 1;
-    this.firCurrentId = 1;
-    this.statusUpdateCurrentId = 1;
-  }
-
+// Database storage implementation
+export class DatabaseStorage implements IStorage {
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userCurrentId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   // FIR methods
   async createFir(insertFir: InsertFir): Promise<Fir> {
-    const id = this.firCurrentId++;
-    const createdAt = new Date();
-    
-    // Ensure dateTime and location are not undefined
-    const dateTime = insertFir.dateTime !== undefined ? insertFir.dateTime : null;
-    const location = insertFir.location !== undefined ? insertFir.location : null;
-    const status = insertFir.status || "REGISTERED";
-    
-    const fir: Fir = { 
-      ...insertFir,
-      dateTime,
-      location,
-      status,
-      id, 
-      createdAt
-    };
-    this.firs.set(insertFir.firId, fir);
+    const [fir] = await db
+      .insert(firs)
+      .values({
+        ...insertFir,
+        dateTime: insertFir.dateTime || null,
+        location: insertFir.location || null,
+        status: insertFir.status || "REGISTERED"
+      })
+      .returning();
     
     // Create initial status update
     await this.createStatusUpdate({
@@ -86,40 +65,40 @@ export class MemStorage implements IStorage {
   }
 
   async getFir(firId: string): Promise<Fir | undefined> {
-    return this.firs.get(firId);
+    const [fir] = await db.select().from(firs).where(eq(firs.firId, firId));
+    return fir || undefined;
   }
 
   async getAllFirs(): Promise<Fir[]> {
-    return Array.from(this.firs.values());
+    return await db.select().from(firs).orderBy(desc(firs.createdAt));
   }
 
   async updateFirStatus(firId: string, status: string): Promise<Fir | undefined> {
-    const fir = await this.getFir(firId);
-    if (!fir) return undefined;
-    
-    const updatedFir: Fir = { ...fir, status };
-    this.firs.set(firId, updatedFir);
-    return updatedFir;
+    const [fir] = await db
+      .update(firs)
+      .set({ status })
+      .where(eq(firs.firId, firId))
+      .returning();
+    return fir || undefined;
   }
 
   // Status Update methods
   async createStatusUpdate(insertStatusUpdate: InsertStatusUpdate): Promise<StatusUpdate> {
-    const id = this.statusUpdateCurrentId++;
-    const timestamp = new Date();
-    const statusUpdate: StatusUpdate = {
-      ...insertStatusUpdate,
-      id,
-      timestamp
-    };
-    this.statusUpdates.set(id, statusUpdate);
+    const [statusUpdate] = await db
+      .insert(statusUpdates)
+      .values(insertStatusUpdate)
+      .returning();
     return statusUpdate;
   }
 
   async getStatusUpdates(firId: string): Promise<StatusUpdate[]> {
-    return Array.from(this.statusUpdates.values())
-      .filter(update => update.firId === firId)
-      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    return await db
+      .select()
+      .from(statusUpdates)
+      .where(eq(statusUpdates.firId, firId))
+      .orderBy(statusUpdates.timestamp);
   }
 }
 
-export const storage = new MemStorage();
+// Use DatabaseStorage
+export const storage = new DatabaseStorage();

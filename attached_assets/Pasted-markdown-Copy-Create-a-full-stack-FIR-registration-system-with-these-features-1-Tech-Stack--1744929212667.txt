@@ -1,0 +1,112 @@
+markdown
+Copy
+
+Create a full-stack FIR registration system with these features:
+
+1. **Tech Stack**:  
+   - Backend: Node.js/Express  
+   - Frontend: HTML/CSS/JavaScript  
+   - AI: Gemini 2.0 Flash (`gemini-1.5-flash`)  
+   - PDF: pdf-lib  
+   - Key: `AIzaSyAPK43L_7NY5cIHHqoq9S1HdHY3xtgrZjM`
+
+2. **Core Functionality**:  
+   - **Conversational Interface**:  
+     ```javascript
+     // Gemini prompt template:
+     const prompt = `
+     Act as an FIR assistant. Extract these details from user input:
+     1. Crime type (e.g., theft, assault)
+     2. Date/time (ISO format)
+     3. Location (GPS preferred)
+     4. Victim/perpetrator details
+     5. Evidence mentions
+
+     Respond ONLY in JSON format:
+     {
+       "crime": string,
+       "ipcSections": string[] (e.g., ["IPC 379"]),
+       "summary": string,
+       "priority": 1-5
+     }`
+     ```
+   - **PDF Generation**:  
+     ```javascript
+     function generateFIRPDF(data) {
+       const pdfDoc = await PDFDocument.create();
+       // Add FIR header, IPC sections, user details
+     }
+     ```
+   - **Case Tracking**:  
+     ```javascript
+     const firDatabase = new Map(); // Stores {firId, status, details}
+     ```
+
+3. **File Structure**:  
+
+/backend
+index.js (Express server)
+/routes
+fir.js (API endpoints)
+/frontend
+index.html (Chat UI)
+styles.css
+app.js (Fetch API calls)
+Copy
+
+
+4. **Deployment Ready**:  
+- Add `start` script in `package.json`  
+- Listen on port 3000  
+- Enable CORS for frontend
+
+5. **User Flow**:  
+1. User describes incident in chat  
+2. Gemini extracts details → suggests IPC sections  
+3. System generates PDF FIR  
+4. Provides trackable FIR ID  
+
+6. **Example Output**:  
+```json
+{
+  "firId": "FIR-20240615-123",
+  "ipcSections": ["IPC 379", "IPC 420"],
+  "pdfUrl": "/fir/FIR-20240615-123.pdf",
+  "status": "REGISTERED"
+}
+
+    Error Handling:
+
+        Validate Gemini responses with try/catch
+
+        Retry failed API calls (3 attempts)
+
+    To-Do:
+
+        Add multilingual support
+
+        Implement case status updates
+
+        Add evidence upload
+
+Note: Use this exact Gemini prompt structure to ensure valid JSON responses.
+Copy
+
+
+---
+
+### **Key Advantages**:
+1. **Single-Prompt Setup**: Covers backend, frontend, and AI integration  
+2. **Production-Ready**: Includes error handling and scaling basics  
+3. **Legal Compliance**: Ensures proper IPC section formatting  
+4. **Extensible**: Marked TODOs for future features  
+
+Paste this into Replit AI, and it will generate the complete project with:  
+- Working Express.js backend  
+- Interactive chat frontend  
+- Pre-configured Gemini API calls  
+- PDF download functionality  
+
+Need any adjustments (e.g., adding Hindi support or WhatsApp notifications)? Let me know!
+
+This response is AI-generated, for reference only.

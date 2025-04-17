@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/* Custom styles for chat messages */
+.chat-message {
+  max-width: 80%;
+  margin-bottom: 10px;
+  padding: 12px 16px;
+  border-radius: 16px;
+}
+
+.user-message {
+  background-color: #e3f2fd;
+  border-top-right-radius: 4px;
+  margin-left: auto;
+}
+
+.system-message {
+  background-color: white;
+  border-top-left-radius: 4px;
+  margin-right: auto;
+}
+
+.system-message.json {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.85rem;
+  background-color: #f8f9fa;
+}
+
+@media (max-width: 768px) {
+  .chat-message {
+    max-width: 90%;
+  }
+}

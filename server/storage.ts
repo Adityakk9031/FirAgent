@@ -1,24 +1,79 @@
-import { firs, statusUpdates, users, type User, type InsertUser, type Fir, type InsertFir, type StatusUpdate, type InsertStatusUpdate } from "@shared/schema";
+import { firs, statusUpdates, users, evidence, notifications, type User, type InsertUser, type Fir, type InsertFir, type StatusUpdate, type InsertStatusUpdate, type Evidence, type InsertEvidence, type Notification, type InsertNotification } from "@shared/schema";
 import { format } from "date-fns";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, gte, lte, like, sql, inArray, or, isNull, count, asc, SQL } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
 
-// Interface for storage operations
+// Define SearchParams interface
+export interface SearchParams {
+  query?: string;
+  status?: string | string[];
+  priority?: number | number[];
+  startDate?: string;
+  endDate?: string;
+  location?: string;
+  ipcSection?: string;
+  tags?: string[];
+  page?: number;
+  limit?: number;
+  userId?: number;
+  officerId?: number;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+}
+
+const PostgresSessionStore = connectPg(session);
+
+// Extended interface for storage operations
 export interface IStorage {
+  // Session store
+  sessionStore: session.SessionStore;
+
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, updates: Partial<User>): Promise<User>;
+  updateUserLastLogin(id: number): Promise<void>;
+  getUserCount(): Promise<number>;
+  getUsers(page?: number, limit?: number): Promise<User[]>;
+  getUsersByRole(role: string): Promise<User[]>;
   
   // FIR methods
   createFir(fir: InsertFir): Promise<Fir>;
   getFir(firId: string): Promise<Fir | undefined>;
-  getAllFirs(): Promise<Fir[]>;
-  updateFirStatus(firId: string, status: string): Promise<Fir | undefined>;
+  getAllFirs(page?: number, limit?: number): Promise<Fir[]>;
+  updateFir(firId: string, updates: Partial<Fir>): Promise<Fir | undefined>;
+  updateFirStatus(firId: string, status: string, updatedBy?: number): Promise<Fir | undefined>;
+  getFirsByUser(userId: number): Promise<Fir[]>;
+  getFirsByOfficer(officerId: number): Promise<Fir[]>;
+  getFirCount(): Promise<number>;
+  searchFirs(params: SearchParams): Promise<{ firs: Fir[], total: number }>;
   
   // Status Update methods
   createStatusUpdate(statusUpdate: InsertStatusUpdate): Promise<StatusUpdate>;
   getStatusUpdates(firId: string): Promise<StatusUpdate[]>;
+  
+  // Evidence methods
+  createEvidence(evidence: InsertEvidence): Promise<Evidence>;
+  getEvidenceByFir(firId: string): Promise<Evidence[]>;
+  getEvidenceById(id: number): Promise<Evidence | undefined>;
+  
+  // Notification methods
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getUserNotifications(userId: number, unreadOnly?: boolean): Promise<Notification[]>;
+  markNotificationAsRead(id: number): Promise<void>;
+  markAllNotificationsAsRead(userId: number): Promise<void>;
+  
+  // Analytics methods
+  getAnalyticsByTimeRange(startDate: Date, endDate: Date): Promise<any>;
+  getCrimeTypeDistribution(): Promise<any[]>;
+  getStatusDistribution(): Promise<any[]>;
+  getMonthlyStats(year: number): Promise<any[]>;
+  getPriorityDistribution(): Promise<any[]>;
 }
 
 // Database storage implementation

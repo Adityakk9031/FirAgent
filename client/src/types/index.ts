@@ -17,6 +17,8 @@ export interface GeminiResponse {
   ipcSections: string[];
   summary: string;
   priority: number;
+  dateTime?: string;
+  location?: string;
   firId?: string;
 }
 

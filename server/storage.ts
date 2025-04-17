@@ -59,8 +59,17 @@ export class MemStorage implements IStorage {
   async createFir(insertFir: InsertFir): Promise<Fir> {
     const id = this.firCurrentId++;
     const createdAt = new Date();
+    
+    // Ensure dateTime and location are not undefined
+    const dateTime = insertFir.dateTime !== undefined ? insertFir.dateTime : null;
+    const location = insertFir.location !== undefined ? insertFir.location : null;
+    const status = insertFir.status || "REGISTERED";
+    
     const fir: Fir = { 
-      ...insertFir, 
+      ...insertFir,
+      dateTime,
+      location,
+      status,
       id, 
       createdAt
     };

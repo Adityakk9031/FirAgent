@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useState } from "react";
+import React, { createContext, ReactNode, useContext, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { User } from "@shared/schema";
 import { apiRequest, getQueryFn, queryClient } from "../lib/queryClient";
@@ -44,10 +44,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } = useQuery({
     queryKey: ["/api/auth/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    onSuccess: (data) => {
-      setIsAuthenticated(!!data);
-    },
   });
+
+  // Handle authentication state changes
+  React.useEffect(() => {
+    setIsAuthenticated(!!user);
+  }, [user]);
 
   // Login mutation
   const loginMutation = useMutation({

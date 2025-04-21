@@ -18,8 +18,10 @@ function Router() {
       {/* Public routes */}
       <Route path="/auth" component={AuthPage} />
       
-      {/* Fallback to 404 */}
-      <Route component={NotFound} />
+      {/* Redirect to home page for any other route */}
+      <Route>
+        <Home />
+      </Route>
     </Switch>
   );
 }

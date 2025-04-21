@@ -18,7 +18,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const AppHeader: React.FC = () => {
+interface AppHeaderProps {
+  onNewReport?: () => void;
+}
+
+const AppHeader: React.FC<AppHeaderProps> = ({ onNewReport }) => {
   const { toast } = useToast();
 
   const handleHelpClick = () => {
@@ -35,6 +39,15 @@ const AppHeader: React.FC = () => {
       description: "Settings functionality is coming soon.",
       duration: 3000,
     });
+  };
+
+  const handleNewReport = () => {
+    if (onNewReport) {
+      onNewReport();
+    } else {
+      // If no handler is provided, just reload the page
+      window.location.reload();
+    }
   };
 
   return (
@@ -95,7 +108,12 @@ const AppHeader: React.FC = () => {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          <Button variant="default" size="sm" className="ml-2 hidden md:flex">
+          <Button 
+            variant="default" 
+            size="sm" 
+            className="ml-2 hidden md:flex"
+            onClick={handleNewReport}
+          >
             <FileText className="h-4 w-4 mr-2" />
             New Report
           </Button>

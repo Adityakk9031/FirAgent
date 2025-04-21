@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useContext, useState } from "react";
+import React, { createContext, ReactNode, useContext } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { User } from "@shared/schema";
 import { apiRequest, getQueryFn, queryClient } from "../lib/queryClient";
@@ -34,7 +34,6 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   // Fetch current user data
   const {
@@ -45,11 +44,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/auth/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
-
-  // Handle authentication state changes
-  React.useEffect(() => {
-    setIsAuthenticated(!!user);
-  }, [user]);
 
   // Login mutation
   const loginMutation = useMutation({
@@ -63,7 +57,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (userData: User) => {
       queryClient.setQueryData(["/api/auth/user"], userData);
-      setIsAuthenticated(true);
       toast({
         title: "Login successful",
         description: `Welcome back, ${userData.fullName}!`,
@@ -90,7 +83,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (userData: User) => {
       queryClient.setQueryData(["/api/auth/user"], userData);
-      setIsAuthenticated(true);
       toast({
         title: "Registration successful",
         description: `Welcome, ${userData.fullName}!`,
@@ -116,7 +108,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/auth/user"], null);
-      setIsAuthenticated(false);
       // Invalidate all queries to clear the cache
       queryClient.invalidateQueries();
       toast({
@@ -153,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     register,
     logout,
-    isAuthenticated,
+    isAuthenticated: !!user,
   };
 
   return (

@@ -65,5 +65,11 @@ export function getFirPdfUrl(firId: string): string {
 // Gemini API
 export async function processUserInput(userInput: string): Promise<GeminiResponse> {
   const response = await apiRequest('POST', '/api/gemini/process', { userInput });
-  return response.json();
+  return await response.json();
+}
+
+// AI Lawyer API
+export async function askAILawyer(question: string): Promise<{ answer: string; question: string }> {
+  const response = await apiRequest('POST', '/api/ai-lawyer/ask', { question });
+  return await response.json();
 }

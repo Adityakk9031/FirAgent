@@ -4,7 +4,8 @@ import FIRStatusPanel from '@/components/FIRStatusPanel';
 import AppHeader from '@/components/AppHeader';
 import AppFooter from '@/components/AppFooter';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield } from 'lucide-react';
+import { Shield, Scale } from 'lucide-react';
+import { AILawyer } from '@/components/AILawyer';
 
 const Home: React.FC = () => {
   const [currentFirId, setCurrentFirId] = useState<string | null>(null);
@@ -13,9 +14,13 @@ const Home: React.FC = () => {
     setCurrentFirId(firId);
   };
 
+  const handleNewReport = () => {
+    setCurrentFirId(null);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex flex-col">
-      <AppHeader />
+      <AppHeader onNewReport={handleNewReport} />
       
       {/* Hero section */}
       <div className="bg-gradient-to-r from-primary/90 to-primary text-white py-8 mb-6 shadow-md">
@@ -53,9 +58,10 @@ const Home: React.FC = () => {
         {/* Mobile view: Tabbed interface */}
         <div className="md:hidden">
           <Tabs defaultValue="chat" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="chat">Chat Interface</TabsTrigger>
               <TabsTrigger value="status">FIR Status</TabsTrigger>
+              <TabsTrigger value="lawyer">AI Lawyer</TabsTrigger>
             </TabsList>
             <TabsContent value="chat">
               <ChatInterface onFirCreated={handleFirCreated} />
@@ -63,7 +69,19 @@ const Home: React.FC = () => {
             <TabsContent value="status">
               <FIRStatusPanel firId={currentFirId} />
             </TabsContent>
+            <TabsContent value="lawyer">
+              <AILawyer />
+            </TabsContent>
           </Tabs>
+        </div>
+        
+        {/* Desktop AI Lawyer section */}
+        <div className="hidden md:block mt-8">
+          <div className="flex items-center mb-4">
+            <Scale className="mr-2 h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">AI Legal Assistant</h2>
+          </div>
+          <AILawyer />
         </div>
       </main>
       

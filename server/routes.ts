@@ -1,4 +1,4 @@
-import type { Express, Request, Response, NextFunction } from "express";
+import type { Express, Request, Response, NextFunction, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { SearchParams } from "./storage";
@@ -250,15 +250,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Notifications routes
   // Get user notifications
-  app.get('/api/notifications', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/notifications', ensureAuthenticated, (async (req: Request, res: Response) => {
     try {
       const unreadOnly = req.query.unreadOnly === 'true';
-      const notifications = await storage.getUserNotifications(req.user.id, unreadOnly);
+      const notifications = await storage.getUserNotifications(req.user!.id, unreadOnly);
       res.json(notifications);
     } catch (error) {
       res.status(500).json({ message: "Failed to retrieve notifications" });
     }
-  });
+  }) as RequestHandler);
 
   // Mark notification as read
   app.post('/api/notifications/:id/read', ensureAuthenticated, async (req: Request, res: Response) => {
@@ -272,14 +272,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Mark all notifications as read
-  app.post('/api/notifications/read-all', ensureAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/notifications/read-all', ensureAuthenticated, (async (req: Request, res: Response) => {
     try {
-      await storage.markAllNotificationsAsRead(req.user.id);
+      await storage.markAllNotificationsAsRead(req.user!.id);
       res.status(200).json({ message: "All notifications marked as read" });
     } catch (error) {
       res.status(500).json({ message: "Failed to mark all notifications as read" });
     }
-  });
+  }) as RequestHandler);
 
   // Analytics routes (protected for authorized users only)
   // Get crime type distribution
@@ -414,6 +414,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Gemini processing error:", error);
       res.status(500).json({ message: "Failed to process with Gemini" });
+    }
+  });
+
+  // AI Lawyer service - Answer legal questions
+  app.post('/api/ai-lawyer/ask', async (req: Request, res: Response) => {
+    try {
+      const { question } = req.body;
+      
+      if (!question || typeof question !== 'string') {
+        return res.status(400).json({ message: "A legal question is required" });
+      }
+      
+      // Build the prompt for Gemini
+      const promptTemplate = `
+      Act as a helpful AI legal assistant specializing in Indian law. 
+      
+      Provide clear, direct, and informative answers to legal questions.
+      Do NOT start your response with "YES" or "NO" unless specifically asked for a yes/no answer.
+      
+      Structure your response in a user-friendly way:
+      1. Give a direct answer to the question
+      2. Provide a brief explanation of the relevant legal principles
+      3. Suggest practical next steps or actions the user can take
+      
+      Keep your response concise, practical, and focused on helping the user understand their legal situation.
+      Use simple language and avoid excessive legal jargon.
+      `;
+      
+      const prompt = `${promptTemplate}\n\nQuestion: ${question}`;
+      
+      // Make request to Gemini API with retry logic
+      let response;
+      let attempts = 0;
+      let maxAttempts = 3;
+      
+      while (attempts < maxAttempts) {
+        try {
+          attempts++;
+          const result = await model.generateContent(prompt);
+          const responseText = result.response.text();
+          
+          response = {
+            answer: responseText,
+            question: question
+          };
+          
+          break;
+        } catch (error) {
+          if (attempts >= maxAttempts) {
+            return res.status(500).json({ message: "Failed to process with AI Lawyer after multiple attempts" });
+          }
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      res.json(response);
+    } catch (error) {
+      console.error("AI Lawyer processing error:", error);
+      res.status(500).json({ message: "Failed to process with AI Lawyer" });
     }
   });
 
